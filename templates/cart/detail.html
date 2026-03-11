@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Shopping Cart{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Shopping Cart</h1>
+
+{% if cart %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                {% for item in cart %}
+                <div class="row mb-3 pb-3 border-bottom" id="cart-item-{{ item.product.id }}">
+                    <div class="col-md-2">
+                        {% if item.product.image %}
+                        <img src="{{ item.product.image.url }}" class="img-fluid rounded" alt="{{ item.product.name }}">
+                        {% else %}
+                        <img src="https://via.placeholder.com/100x100" class="img-fluid rounded" alt="No image">
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <h5>{{ item.product.name }}</h5>
+                        <p class="text-muted">Price: ₵<span class="item-price" id="price-{{ item.product.id }}">{{ item.price }}</span></p>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <button class="btn btn-outline-secondary update-quantity" type="button" data-product-id="{{ item.product.id }}" data-action="decrease">-</button>
+                            <input type="number" class="form-control text-center quantity-input" 
+                                   value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" 
+                                   data-product-id="{{ item.product.id }}" style="width: 70px;">
+                            <button class="btn btn-outline-secondary update-quantity" type="button" data-product-id="{{ item.product.id }}" data-action="increase">+</button>
+                        </div>
+                        <small class="text-muted">Stock: {{ item.product.stock }}</small>
+                    </div>
+                    <div class="col-md-2">
+                        <p class="h5">₵<span class="item-total" id="total-{{ item.product.id }}">{{ item.total_price }}</span></p>
+                    </div>
+                    <div class="col-md-1">
+                        <form action="{% url 'cart:cart_remove' item.product.id %}" method="post" class="remove-form">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Order Summary</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <td>Subtotal:</td>
+                        <td class="text-end">₵<span id="cart-subtotal">{{ cart.get_total_price }}</span></td>
+                    </tr>
+                    <tr>
+                        <td>Shipping:</td>
+                        <td class="text-end">₵0.00</td>
+                    </tr>
+                    <tr class="fw-bold">
+                        <td>Total:</td>
+                        <td class="text-end">₵<span id="cart-total">{{ cart.get_total_price }}</span></td>
+                    </tr>
+                </table>
+                
+                <a href="{% url 'orders:order_create' %}" class="btn btn-success w-100 mb-2">
+                    <i class="fas fa-credit-card"></i> Proceed to Checkout
+                </a>
+                <a href="{% url 'shop:product_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-arrow-left"></i> Continue Shopping
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <h4 class="alert-heading">Your cart is empty!</h4>
+    <p>Start shopping to add items to your cart.</p>
+    <hr>
+    <a href="{% url 'shop:product_list' %}" class="btn btn-primary">
+        <i class="fas fa-shopping-bag"></i> Browse Products
+    </a>
+</div>
+{% endif %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get CSRF token from any form
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    // Function to update cart via AJAX
+    function updateCart(productId, quantity) {
+        fetch(`/cart/update/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                quantity: quantity
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update item total
+                document.getElementById(`total-${productId}`).textContent = data.item_total.toFixed(2);
+                
+                // Update cart subtotal and total
+                document.getElementById('cart-subtotal').textContent = data.cart_total.toFixed(2);
+                document.getElementById('cart-total').textContent = data.cart_total.toFixed(2);
+                
+                // Update cart count in navbar if exists
+                const cartBadge = document.querySelector('.badge.bg-danger');
+                if (cartBadge) {
+                    cartBadge.textContent = data.cart_count;
+                }
+            } else {
+                alert('Error updating cart: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while updating the cart');
+        });
+    }
+    
+    // Handle quantity input change
+    document.querySelectorAll('.quantity-input').forEach(input => {
+        input.addEventListener('change', function() {
+            const productId = this.dataset.productId;
+            let quantity = parseInt(this.value);
+            const maxStock = parseInt(this.getAttribute('max'));
+            
+            // Ensure quantity is at least 1 and not more than stock
+            if (quantity < 1) {
+                quantity = 1;
+                this.value = 1;
+            }
+            if (quantity > maxStock) {
+                quantity = maxStock;
+                this.value = maxStock;
+                alert(`Only ${maxStock} items available in stock`);
+            }
+            
+            updateCart(productId, quantity);
+        });
+    });
+    
+    // Handle +/- buttons
+    document.querySelectorAll('.update-quantity').forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            const action = this.dataset.action;
+            const input = document.querySelector(`.quantity-input[data-product-id="${productId}"]`);
+            let quantity = parseInt(input.value);
+            const maxStock = parseInt(input.getAttribute('max'));
+            
+            if (action === 'increase') {
+                if (quantity < maxStock) {
+                    quantity += 1;
+                } else {
+                    alert(`Only ${maxStock} items available in stock`);
+                }
+            } else if (action === 'decrease' && quantity > 1) {
+                quantity -= 1;
+            }
+            
+            if (input.value != quantity) {
+                input.value = quantity;
+                updateCart(productId, quantity);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

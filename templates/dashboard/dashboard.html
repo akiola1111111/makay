@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Admin Dashboard</h1>
+    
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Total Orders</h5>
+                    <h2>{{ total_orders }}</h2>
+                    <small>{{ today_orders }} today</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Total Revenue</h5>
+                    <h2>₵{{ total_revenue|floatformat:2 }}</h2>
+                    <small>₵{{ today_revenue|floatformat:2 }} today</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Products</h5>
+                    <h2>{{ total_products }}</h2>
+                    <small>{{ total_categories }} categories</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Customers</h5>
+                    <h2>{{ total_customers }}</h2>
+                    <small>Registered users</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Status Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h6 class="card-title text-warning">Pending Orders</h6>
+                    <h3>{{ pending_orders }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h6 class="card-title text-info">Processing</h6>
+                    <h3>{{ processing_orders }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="card-title text-success">Completed</h6>
+                    <h3>{{ completed_orders }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h6 class="card-title text-danger">Cancelled</h6>
+                    <h3>{{ cancelled_orders }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Low Stock Alert -->
+    {% if low_stock_products > 0 %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <strong><i class="fas fa-exclamation-triangle"></i> Low Stock Alert!</strong> {{ low_stock_products }} product(s) have low stock (less than 5 items).
+        <a href="{% url 'admin:shop_product_changelist' %}" class="alert-link">Manage Products</a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+    
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'admin:shop_product_add' %}" class="btn btn-success me-2">
+                        <i class="fas fa-plus-circle"></i> Add Product
+                    </a>
+                    <a href="{% url 'dashboard:order_list' %}" class="btn btn-primary me-2">
+                        <i class="fas fa-shopping-cart"></i> View All Orders
+                    </a>
+                    <a href="{% url 'admin:shop_product_changelist' %}" class="btn btn-info me-2">
+                        <i class="fas fa-edit"></i> Manage Products
+                    </a>
+                    <a href="{% url 'admin:index' %}" class="btn btn-secondary">
+                        <i class="fas fa-cog"></i> Admin Panel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Recent Orders -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Orders</h5>
+                    <a href="{% url 'dashboard:order_list' %}" class="btn btn-sm btn-light">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in recent_orders %}
+                                <tr>
+                                    <td>#{{ order.id }}</td>
+                                    <td>{{ order.user.username }}</td>
+                                    <td>₵{{ order.total_amount|floatformat:2 }}</td>
+                                    <td>
+                                        <span class="badge {% if order.status == 'pending' %}bg-warning{% elif order.status == 'processing' %}bg-info{% elif order.status == 'completed' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ order.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ order.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'dashboard:order_detail' order.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">No orders found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Products -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Recently Added Products</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% for product in recent_products %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ product.name }}
+                            <span class="badge bg-primary rounded-pill">₵{{ product.price }}</span>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item">No products added yet</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Orders by Status Summary -->
+            <div class="card mt-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Orders by Status</h5>
+                </div>
+                <div class="card-body">
+                    {% for status in orders_by_status %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>{{ status.status|title }}</span>
+                        <span class="badge bg-secondary">{{ status.count }}</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">No orders yet</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

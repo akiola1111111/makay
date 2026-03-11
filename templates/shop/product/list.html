@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if category %}{{ category.name }}{% else %}Products{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Categories</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{% url 'shop:product_list' %}" 
+                   class="list-group-item list-group-item-action {% if not category %}active{% endif %}">
+                    All Products
+                </a>
+                {% for c in categories %}
+                <a href="{{ c.get_absolute_url }}" 
+                   class="list-group-item list-group-item-action {% if category.slug == c.slug %}active{% endif %}">
+                    {{ c.name }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Admin Quick Actions (Only visible to staff) -->
+        {% if user.is_staff %}
+        <div class="card mt-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Admin Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'admin:shop_product_add' %}" class="btn btn-success">
+                        <i class="fas fa-plus-circle"></i> Add New Product
+                    </a>
+                    <a href="{% url 'dashboard:order_list' %}" class="btn btn-info">
+                        <i class="fas fa-shopping-cart"></i> View Orders
+                    </a>
+                    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Main Content -->
+    <div class="col-md-9">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>{% if category %}{{ category.name }}{% else %}All Products{% endif %}</h2>
+            <p class="text-muted">{{ products|length }} product(s) found</p>
+        </div>
+        
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for product in products %}
+            <div class="col">
+                <div class="card h-100">
+                    <a href="{{ product.get_absolute_url }}">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
+                        {% else %}
+                        <img src="https://via.placeholder.com/300x200" class="card-img-top" alt="No image available">
+                        {% endif %}
+                    </a>
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <a href="{{ product.get_absolute_url }}" class="text-decoration-none text-dark">
+                                {{ product.name }}
+                            </a>
+                        </h5>
+                        <p class="card-text text-muted">{{ product.description|truncatewords:15 }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                           <span class="h5 mb-0">₵{{ product.price }}</span>
+                            <form action="{% url 'cart:cart_add' product.id %}" method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="quantity" value="1">
+                                <input type="hidden" name="override" value="False">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-cart-plus"></i> Add to Cart
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <!-- Admin Edit Button (Only visible to staff) -->
+                        {% if user.is_staff %}
+                        <div class="mt-2 text-center">
+                            <a href="{% url 'admin:shop_product_change' product.id %}" class="btn btn-sm btn-warning">
+                                <i class="fas fa-edit"></i> Edit Product
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    No products found in this category.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
